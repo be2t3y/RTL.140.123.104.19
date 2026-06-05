@@ -1,0 +1,47 @@
+# dataset
+python/data
+
+# python
+*/__pycache__/
+*.pyc
+
+# model weights
+*.pt
+*.pth
+*.ckpt
+
+# dataset
+#data/
+
+# training output
+python/output/checkpoints
+python/output_vit/checkpoints
+python/output/test
+python/output_vit
+
+# log
+python/output/logs/*.log
+python/output_vit/logs/*.log
+
+# tensorboard
+python/tensorboard/train/sglatrack/
+
+# jupyter
+.ipynb_checkpoints/
+
+# system
+.DS_Store
+
+# reference
+#reference/
+
+# pretrained_models
+python/pretrained_models
+
+#vscode
+.vscode
+
+reference/rongxuan
+reference/Lab_Theses
+.codex
+.tmp_pydeps
