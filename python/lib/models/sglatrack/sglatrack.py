@@ -30,6 +30,19 @@ from lib.models.sglatrack.vit_CARE_relu6_dim64 import (
 from lib.models.sglatrack.vit_CARE_relu6_dim192 import (
     vit_tiny192_care_patch16_224 as vit_care_relu6_dim192_base_patch16_224,
 )
+from lib.models.sglatrack.vit_CARE_relu6_dim192_fixed_q import (
+    vit_tiny192_care_fixed_q48_patch16_224 as vit_care_relu6_dim192_fixed_q48_base_patch16_224,
+    vit_tiny192_care_fixed_q58_patch16_224 as vit_care_relu6_dim192_fixed_q58_base_patch16_224,
+    vit_tiny192_care_fixed_q68_patch16_224 as vit_care_relu6_dim192_fixed_q68_base_patch16_224,
+    vit_tiny192_care_fixed_q76_patch16_224 as vit_care_relu6_dim192_fixed_q76_base_patch16_224,
+    vit_tiny192_care_fixed_q77_patch16_224 as vit_care_relu6_dim192_fixed_q77_base_patch16_224,
+    vit_tiny192_care_fixed_q78_patch16_224 as vit_care_relu6_dim192_fixed_q78_base_patch16_224,
+    vit_tiny192_care_fixed_q88_patch16_224 as vit_care_relu6_dim192_fixed_q88_base_patch16_224,
+    vit_tiny192_care_fixed_q98_patch16_224 as vit_care_relu6_dim192_fixed_q98_base_patch16_224,
+    vit_tiny192_care_fixed_q108_patch16_224 as vit_care_relu6_dim192_fixed_q108_base_patch16_224,
+    vit_tiny192_care_fixed_q118_patch16_224 as vit_care_relu6_dim192_fixed_q118_base_patch16_224,
+    vit_tiny192_care_fixed_q128_patch16_224 as vit_care_relu6_dim192_fixed_q128_base_patch16_224,
+)
 from lib.models.sglatrack.vit_CARE_relu6_hand import vit_base_patch16_224 as vit_care_relu6_hand_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed import vit_base_patch16_224 as vit_care_relu6_fixed_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q48 import vit_base_patch16_224 as vit_care_relu6_fixed_q48_base_patch16_224
@@ -43,6 +56,8 @@ from lib.models.sglatrack.vit_CARE_relu6_fixed_q69 import vit_base_patch16_224 a
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q610 import vit_base_patch16_224 as vit_care_relu6_fixed_q610_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q611 import vit_base_patch16_224 as vit_care_relu6_fixed_q611_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q612 import vit_base_patch16_224 as vit_care_relu6_fixed_q612_base_patch16_224
+from lib.models.sglatrack.vit_CARE_relu6_fixed_q76 import vit_base_patch16_224 as vit_care_relu6_fixed_q76_base_patch16_224
+from lib.models.sglatrack.vit_CARE_relu6_fixed_q77 import vit_base_patch16_224 as vit_care_relu6_fixed_q77_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q78 import vit_base_patch16_224 as vit_care_relu6_fixed_q78_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q84 import vit_base_patch16_224 as vit_care_relu6_fixed_q84_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q85 import vit_base_patch16_224 as vit_care_relu6_fixed_q85_base_patch16_224
@@ -90,12 +105,25 @@ _VIT_CARE_RELU6_FIXED_Q_BACKBONE_FACTORIES = {
     "vit_care_relu6_fixed_q610_base_patch16_224": vit_care_relu6_fixed_q610_base_patch16_224,
     "vit_care_relu6_fixed_q611_base_patch16_224": vit_care_relu6_fixed_q611_base_patch16_224,
     "vit_care_relu6_fixed_q612_base_patch16_224": vit_care_relu6_fixed_q612_base_patch16_224,
+    "vit_care_relu6_fixed_q76_base_patch16_224": vit_care_relu6_fixed_q76_base_patch16_224,
+    "vit_care_relu6_fixed_q77_base_patch16_224": vit_care_relu6_fixed_q77_base_patch16_224,
     "vit_care_relu6_fixed_q78_base_patch16_224": vit_care_relu6_fixed_q78_base_patch16_224,
     "vit_care_relu6_fixed_q84_base_patch16_224": vit_care_relu6_fixed_q84_base_patch16_224,
     "vit_care_relu6_fixed_q85_base_patch16_224": vit_care_relu6_fixed_q85_base_patch16_224,
     "vit_care_relu6_fixed_q86_base_patch16_224": vit_care_relu6_fixed_q86_base_patch16_224,
     "vit_care_relu6_fixed_q87_base_patch16_224": vit_care_relu6_fixed_q87_base_patch16_224,
     "vit_care_relu6_fixed_q88_base_patch16_224": vit_care_relu6_fixed_q88_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q48_base_patch16_224": vit_care_relu6_dim192_fixed_q48_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q58_base_patch16_224": vit_care_relu6_dim192_fixed_q58_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q68_base_patch16_224": vit_care_relu6_dim192_fixed_q68_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q76_base_patch16_224": vit_care_relu6_dim192_fixed_q76_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q77_base_patch16_224": vit_care_relu6_dim192_fixed_q77_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q78_base_patch16_224": vit_care_relu6_dim192_fixed_q78_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q88_base_patch16_224": vit_care_relu6_dim192_fixed_q88_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q98_base_patch16_224": vit_care_relu6_dim192_fixed_q98_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q108_base_patch16_224": vit_care_relu6_dim192_fixed_q108_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q118_base_patch16_224": vit_care_relu6_dim192_fixed_q118_base_patch16_224,
+    "vit_care_relu6_dim192_fixed_q128_base_patch16_224": vit_care_relu6_dim192_fixed_q128_base_patch16_224,
     "vit_care_relu6_fixed_q89_base_patch16_224": vit_care_relu6_fixed_q89_base_patch16_224,
     "vit_care_relu6_fixed_q98_base_patch16_224": vit_care_relu6_fixed_q98_base_patch16_224,
     "vit_care_relu6_fixed_q108_base_patch16_224": vit_care_relu6_fixed_q108_base_patch16_224,
