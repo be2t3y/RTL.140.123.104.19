@@ -1,43 +1,49 @@
+import os
+
 from lib.test.evaluation.environment import EnvSettings
+
+# Repo root: .../s3lab_research_v3/python
+_PRJ = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+# Shared workstation datasets (symlink / NFS on this machine)
+_DATA = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data'
+_OUT = os.path.join(_PRJ, 'output')
+
 
 def local_env_settings():
     settings = EnvSettings()
 
-    # Set your local paths here.
-
     settings.davis_dir = ''
-    settings.dtb70_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/dtb70/DTB70'
-    settings.got10k_lmdb_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/got10k_lmdb'
-    settings.got10k_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/got10k'
+    settings.dtb70_path = os.path.join(_DATA, 'dtb70/DTB70')
+    settings.got10k_lmdb_path = os.path.join(_DATA, 'got10k_lmdb')
+    settings.got10k_path = os.path.join(_DATA, 'got10k')
     settings.got_packed_results_path = ''
     settings.got_reports_path = ''
-    settings.itb_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/itb'
-    settings.lasot_extension_subset_path_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/lasot_extension_subset'
-    settings.lasot_lmdb_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/lasot_lmdb'
-    settings.lasot_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/lasot'
-    settings.network_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/output/test/networks'    # Where tracking networks are stored.
-    settings.nfs_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/nfs'
-    settings.otb_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/otb'
-    settings.prj_dir = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python'
-    settings.result_plot_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/output/test/result_plots'
-    settings.results_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/output/test/tracking_results'    # Where to store tracking results
-    settings.save_dir = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/output'
-    settings.segmentation_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/output/test/segmentation_results'
-    settings.tc128_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/TC128'
+    settings.itb_path = os.path.join(_DATA, 'itb')
+    settings.lasot_extension_subset_path_path = os.path.join(_DATA, 'lasot_extension_subset')
+    settings.lasot_lmdb_path = os.path.join(_DATA, 'lasot_lmdb')
+    settings.lasot_path = os.path.join(_DATA, 'lasot')
+    settings.network_path = os.path.join(_OUT, 'test/networks')
+    settings.nfs_path = os.path.join(_DATA, 'nfs')
+    settings.otb_path = os.path.join(_DATA, 'otb')
+    settings.prj_dir = _PRJ
+    settings.result_plot_path = os.path.join(_OUT, 'test/result_plots')
+    settings.results_path = os.path.join(_OUT, 'test/tracking_results')
+    settings.save_dir = _OUT
+    settings.segmentation_path = os.path.join(_OUT, 'test/segmentation_results')
+    settings.tc128_path = os.path.join(_DATA, 'TC128')
     settings.tn_packed_results_path = ''
-    settings.tnl2k_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/tnl2k'
+    settings.tnl2k_path = os.path.join(_DATA, 'tnl2k')
     settings.tpl_path = ''
-    settings.trackingnet_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/trackingnet'
-    settings.uav123_10fps_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/uav123_10fps/UAV123_10fps'
-    settings.uav123_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/uav123/UAV123'
-    settings.uav_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/uav'
-    settings.uavdt_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/uavdt/home/data/uavdt'
-    settings.uavtrack_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/uavtrack112/home/data/V4RFlight112'
-    settings.visdrone_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/visdrone/VisDrone2018-SOT-test-dev'
-    settings.vot18_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/vot2018'
-    settings.vot22_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/vot2022'
-    settings.vot_path = '/home/chanyuan/02_RESEARCH/s3lab_research_v2/python/data/VOT2019'
+    settings.trackingnet_path = os.path.join(_DATA, 'trackingnet')
+    settings.uav123_10fps_path = os.path.join(_DATA, 'uav123_10fps/UAV123_10fps')
+    settings.uav123_path = os.path.join(_DATA, 'uav123/UAV123')
+    settings.uav_path = os.path.join(_DATA, 'uav')
+    settings.uavdt_path = os.path.join(_DATA, 'uavdt/home/data/uavdt')
+    settings.uavtrack_path = os.path.join(_DATA, 'uavtrack112/home/data/V4RFlight112')
+    settings.visdrone_path = os.path.join(_DATA, 'visdrone/VisDrone2018-SOT-test-dev')
+    settings.vot18_path = os.path.join(_DATA, 'vot2018')
+    settings.vot22_path = os.path.join(_DATA, 'vot2022')
+    settings.vot_path = os.path.join(_DATA, 'VOT2019')
     settings.youtubevos_dir = ''
 
     return settings
-

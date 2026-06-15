@@ -1,26 +1,23 @@
-"""ViT CARE ReLU6 變體：embed_dim=32，可由 ViT-Tiny (192 維) checkpoint 做左上角截斷載入。
+"""ViT CARE ReLU6 變體：embed_dim=32，可由 ViT 寬模型 checkpoint 做左上角截斷投影載入。
 
+支援 teacher embed_dim=192（ViT-Tiny）或 768（MAE ViT-Base / vit_base_patch16_224）。
 與 vit_CARE_relu6.py 結構相同，僅預設維度與 `vit_tiny32_care_patch16_224` 工廠函數不同。
-預訓練載入：將 timm ViT-Tiny 的線性權重 [...,192] 投影為 [...,32]（取每個 Q/K/V 與 MLP 子塊的對應列／行前綴）。
 """
 from __future__ import annotations
 
 from typing import Any, Dict, Tuple
 
 import torch
-import torch.nn as nn
 
-from timm.models.helpers import named_apply, adapt_input_conv
-from timm.models.layers import Mlp, DropPath, trunc_normal_, lecun_normal_
-
-from lib.models.layers.patch_embed import PatchEmbed
 from lib.models.sglatrack.vit_CARE_relu6 import VisionTransformer
 
 
 # ---------------------------------------------------------------------------
-# 維度常數（ViT-Tiny teacher vs 本模型 student）
+# 維度常數
 # ---------------------------------------------------------------------------
-TEACHER_EMBED_DIM = 192
+VIT_TINY_EMBED_DIM = 192
+VIT_BASE_EMBED_DIM = 768
+TEACHER_EMBED_DIM = VIT_TINY_EMBED_DIM  # 相容舊名
 STUDENT_EMBED_DIM = 32
 STUDENT_NUM_HEADS = 4  # 32 % 4 == 0
 STUDENT_DEPTH = 12
@@ -28,14 +25,15 @@ MLP_RATIO = 4
 
 
 def _unwrap_checkpoint(checkpoint: Any) -> Dict[str, torch.Tensor]:
-    """支援裸 state_dict、{'state_dict':...}、{'model':...}。"""
+    """支援裸 state_dict、{'state_dict':...}、{'model':...}、{'net':...}。"""
     if isinstance(checkpoint, dict):
         if "state_dict" in checkpoint:
             sd = checkpoint["state_dict"]
         elif "model" in checkpoint and isinstance(checkpoint["model"], dict):
             sd = checkpoint["model"]
+        elif "net" in checkpoint and isinstance(checkpoint["net"], dict):
+            sd = checkpoint["net"]
         else:
-            # 若值皆為 tensor，視為 flat state_dict
             sd = checkpoint
     else:
         raise TypeError(f"Unsupported checkpoint type: {type(checkpoint)}")
@@ -49,6 +47,26 @@ def _unwrap_checkpoint(checkpoint: Any) -> Dict[str, torch.Tensor]:
             key = key[len("module.") :]
         out[key] = v
     return out
+
+
+def _normalize_backbone_keys(teacher_sd: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    """去掉 backbone. 前綴，使 SGLATrack ckpt 的 backbone 權重可對齊 ViT backbone 鍵名。"""
+    out: Dict[str, torch.Tensor] = {}
+    for k, v in teacher_sd.items():
+        key = k[len("backbone.") :] if k.startswith("backbone.") else k
+        out[key] = v
+    return out
+
+
+def _infer_teacher_embed_dim(teacher_sd: Dict[str, torch.Tensor]) -> int:
+    sd = _normalize_backbone_keys(teacher_sd)
+    w = sd.get("patch_embed.proj.weight")
+    if w is None:
+        raise KeyError(
+            "Cannot infer teacher embed_dim: missing patch_embed.proj.weight "
+            "(expected ViT backbone keys, optionally with backbone. prefix)."
+        )
+    return int(w.shape[0])
 
 
 def _project_qkv_weight(w_t: torch.Tensor, t_dim: int, s_dim: int) -> torch.Tensor:
@@ -69,7 +87,6 @@ def _project_qkv_bias(b_t: torch.Tensor, t_dim: int, s_dim: int) -> torch.Tensor
 
 def _project_mlp_fc1(w_t: torch.Tensor, b_t: torch.Tensor, t_dim: int, s_dim: int) -> Tuple[torch.Tensor, torch.Tensor]:
     """fc1: [4*t_dim, t_dim], bias [4*t_dim]"""
-    th, tw = 4 * t_dim, t_dim
     sh, sw = 4 * s_dim, s_dim
     return w_t[:sh, :sw].clone(), b_t[:sh].clone()
 
@@ -79,18 +96,22 @@ def _project_mlp_fc2(w_t: torch.Tensor, b_t: torch.Tensor, t_dim: int, s_dim: in
     return w_t[:s_dim, : 4 * s_dim].clone(), b_t[:s_dim].clone()
 
 
-def project_vit_tiny_state_dict_to_dim32(
+def project_vit_state_dict_to_dim32(
     teacher_sd: Dict[str, torch.Tensor],
     model: VisionTransformer,
-    teacher_dim: int = TEACHER_EMBED_DIM,
+    teacher_dim: int | None = None,
     student_dim: int = STUDENT_EMBED_DIM,
 ) -> Dict[str, torch.Tensor]:
     """
-    將 ViT-Tiny (embed_dim=192) 的 state_dict 鍵映射到本模型 (embed_dim=32)。
+    將 ViT 寬模型 (192 / 768 等) state_dict 投影到 embed_dim=32 的 student。
     僅覆寫可截斷對齊的參數；其餘鍵不放入 out，由 load_state_dict(strict=False) 保留隨機初始化。
     """
+    teacher_sd = _normalize_backbone_keys(teacher_sd)
     s = student_dim
-    t = teacher_dim
+    t = int(teacher_dim) if teacher_dim is not None else _infer_teacher_embed_dim(teacher_sd)
+    if t < s:
+        raise ValueError(f"teacher_dim ({t}) must be >= student_dim ({s})")
+
     student_sd = model.state_dict()
     out: Dict[str, torch.Tensor] = {}
 
@@ -153,21 +174,42 @@ def project_vit_tiny_state_dict_to_dim32(
     return out
 
 
-def load_vit_tiny_pretrained_dim32(model: VisionTransformer, checkpoint_path: str) -> Tuple[list, list]:
-    """從 .pth 讀取 ViT-Tiny 權重，投影後寫入 32 維模型。回傳 (missing_keys, unexpected_keys)。"""
+def project_vit_tiny_state_dict_to_dim32(
+    teacher_sd: Dict[str, torch.Tensor],
+    model: VisionTransformer,
+    teacher_dim: int = VIT_TINY_EMBED_DIM,
+    student_dim: int = STUDENT_EMBED_DIM,
+) -> Dict[str, torch.Tensor]:
+    """相容舊名：ViT-Tiny (192) → dim32。"""
+    return project_vit_state_dict_to_dim32(
+        teacher_sd, model, teacher_dim=teacher_dim, student_dim=student_dim
+    )
+
+
+def load_projected_pretrained_dim32(model: VisionTransformer, checkpoint_path: str) -> Tuple[list, list]:
+    """從 .pth / .pth.tar 讀取 ViT 寬模型權重，自動推斷維度並投影後寫入 32 維 student。"""
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     teacher_sd = _unwrap_checkpoint(checkpoint)
-    projected = project_vit_tiny_state_dict_to_dim32(teacher_sd, model)
+    teacher_dim = _infer_teacher_embed_dim(_normalize_backbone_keys(teacher_sd))
+    projected = project_vit_state_dict_to_dim32(teacher_sd, model, teacher_dim=teacher_dim)
     incomp = model.load_state_dict(projected, strict=False)
     missing = getattr(incomp, "missing_keys", incomp[0])
     unexpected = getattr(incomp, "unexpected_keys", incomp[1])
-    print(f"[vit_CARE_relu6_dim32] Loaded projected pretrained from: {checkpoint_path}")
+    print(
+        f"[vit_CARE_relu6_dim32] Loaded projected pretrained from: {checkpoint_path} "
+        f"(teacher_dim={teacher_dim} -> student_dim={STUDENT_EMBED_DIM})"
+    )
     print(f"  load_state_dict strict=False -> missing: {len(missing)} keys, unexpected: {len(unexpected)} keys")
     if missing:
         print(f"  missing (first 20): {missing[:20]}")
     if unexpected:
         print(f"  unexpected (first 20): {unexpected[:20]}")
     return missing, unexpected
+
+
+def load_vit_tiny_pretrained_dim32(model: VisionTransformer, checkpoint_path: str) -> Tuple[list, list]:
+    """相容舊名：等同 load_projected_pretrained_dim32。"""
+    return load_projected_pretrained_dim32(model, checkpoint_path)
 
 
 def _create_vision_transformer_dim32(pretrained=False, **kwargs):
@@ -183,11 +225,12 @@ def _create_vision_transformer_dim32(pretrained=False, **kwargs):
     model = VisionTransformer(**model_kwargs)
 
     if pretrained:
-        if isinstance(pretrained, str) and pretrained.endswith(".pth"):
-            load_vit_tiny_pretrained_dim32(model, pretrained)
+        if isinstance(pretrained, str) and (pretrained.endswith(".pth") or pretrained.endswith(".pth.tar")):
+            load_projected_pretrained_dim32(model, pretrained)
         else:
             raise ValueError(
-                "dim32 預訓練請傳入 ViT-Tiny .pth 路徑（例如 pretrained_models/vit_tiny_patch16_224.pth）"
+                "dim32 預訓練請傳入 .pth / .pth.tar 路徑"
+                "（例如 pretrained_models/vit_tiny_patch16_224.pth 或 mae_pretrain_vit_base.pth）"
             )
     return model
 
@@ -195,6 +238,6 @@ def _create_vision_transformer_dim32(pretrained=False, **kwargs):
 def vit_tiny32_care_patch16_224(pretrained=False, **kwargs):
     """
     CARE ReLU6，embed_dim=32、depth=12、num_heads=4。
-    若 `pretrained` 為字串路徑，則從 ViT-Tiny (192) checkpoint 做截斷投影載入。
+    若 `pretrained` 為字串路徑，則從 ViT 寬模型 (192 / 768 等) checkpoint 做截斷投影載入。
     """
     return _create_vision_transformer_dim32(pretrained=pretrained, **kwargs)

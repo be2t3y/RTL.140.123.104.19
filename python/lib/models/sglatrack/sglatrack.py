@@ -27,6 +27,9 @@ from lib.models.sglatrack.vit_CARE_relu6_fixed_shared_trunk_dim32 import (
 from lib.models.sglatrack.vit_CARE_relu6_dim64 import (
     vit_tiny64_care_patch16_224 as vit_care_relu6_dim64_base_patch16_224,
 )
+from lib.models.sglatrack.vit_CARE_relu6_dim192 import (
+    vit_tiny192_care_patch16_224 as vit_care_relu6_dim192_base_patch16_224,
+)
 from lib.models.sglatrack.vit_CARE_relu6_hand import vit_base_patch16_224 as vit_care_relu6_hand_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed import vit_base_patch16_224 as vit_care_relu6_fixed_base_patch16_224
 from lib.models.sglatrack.vit_CARE_relu6_fixed_q48 import vit_base_patch16_224 as vit_care_relu6_fixed_q48_base_patch16_224
@@ -368,7 +371,7 @@ def build_sglatrack(cfg, training=True):
         hidden_dim = backbone.embed_dim
         patch_start_index = 1
     elif cfg.MODEL.BACKBONE.TYPE == 'vit_care_relu6_dim32_base_patch16_224':
-        # embed_dim=32；pretrained 為 vit_tiny_patch16_224.pth（192 維）時由 dim32 模組內投影載入
+        # embed_dim=32；pretrained 為 vit_tiny (192) 或 mae_pretrain_vit_base (768) 等，由 dim32 模組投影載入
         backbone = vit_care_relu6_dim32_base_patch16_224(
             pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE
         )
@@ -378,7 +381,7 @@ def build_sglatrack(cfg, training=True):
         'vit_care_relu6_shared_trunk_dim32_base_patch16_224',
         'vit_care_relu6_fixed_shared_trunk_dim32_base_patch16_224',
     ):
-        # embed_dim=32 浮點 CARE ReLU6（無 Q8.8）；預訓練載入同 dim32（Tiny 投影）
+        # embed_dim=32 浮點 CARE ReLU6（無 Q8.8）；預訓練載入同 dim32（192/768 等 → 32 投影）
         backbone = vit_care_relu6_shared_trunk_dim32_base_patch16_224(
             pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE
         )
@@ -387,6 +390,13 @@ def build_sglatrack(cfg, training=True):
     elif cfg.MODEL.BACKBONE.TYPE == 'vit_care_relu6_dim64_base_patch16_224':
         # embed_dim=64；pretrained 為 vit_tiny_patch16_224.pth（192 維）時由 dim64 模組內投影載入
         backbone = vit_care_relu6_dim64_base_patch16_224(
+            pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE
+        )
+        hidden_dim = backbone.embed_dim
+        patch_start_index = 1
+    elif cfg.MODEL.BACKBONE.TYPE == 'vit_care_relu6_dim192_base_patch16_224':
+        # embed_dim=192；pretrained 為 timm ViT-Tiny .pth 時由 dim192 模組直接載入（不壓維）
+        backbone = vit_care_relu6_dim192_base_patch16_224(
             pretrained, drop_path_rate=cfg.TRAIN.DROP_PATH_RATE
         )
         hidden_dim = backbone.embed_dim
