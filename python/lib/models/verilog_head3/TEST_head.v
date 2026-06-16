@@ -177,7 +177,7 @@ initial begin
 end
 
 initial begin
-    #(CYCLE * 500_000_000);
+    #(CYCLE * 5_000_000);
     $display("[TB] TIMEOUT: head_top did not finish (cycle %0d head_busy=%0d)",
              cycle_cnt, head_busy) ;
     $toggle_stop();

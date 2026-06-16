@@ -522,9 +522,12 @@ def build_sglatrack(cfg, training=True):
     backbone.finetune_track(cfg=cfg, patch_start_index=patch_start_index)
 
     _bt = str(cfg.MODEL.BACKBONE.TYPE)
-    if _bt in _VIT_CARE_RELU6_FIXED_Q_BACKBONE_FACTORIES and cfg.MODEL.HEAD.TYPE != "CENTER_FIXED":
+    if _bt in _VIT_CARE_RELU6_FIXED_Q_BACKBONE_FACTORIES and cfg.MODEL.HEAD.TYPE not in (
+        "CENTER_FIXED",
+        "CENTER_FIXED_SHARED_TRUNK",
+    ):
         raise ValueError(
-            f"BACKBONE.TYPE={_bt!r} 必須搭配 MODEL.HEAD.TYPE=CENTER_FIXED（CenterPredictorFixed），"
+            f"BACKBONE.TYPE={_bt!r} 必須搭配 MODEL.HEAD.TYPE=CENTER_FIXED 或 CENTER_FIXED_SHARED_TRUNK，"
             f"目前為 {cfg.MODEL.HEAD.TYPE!r}。"
         )
 

@@ -435,7 +435,6 @@ conv #(
     .ROM_PROFILE (2       ),
     .OC_PAR      (8       ),
     .MAC_2PHASE  (1       ),
-    .MAC_XPIPE   (1       ),
     .X_AW        (15      )
 ) u_conv2 (
     .clk     (clk       ),

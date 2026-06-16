@@ -282,13 +282,22 @@ def build_box_head(cfg, hidden_dim):
         )
         return center_head
     elif cfg.MODEL.HEAD.TYPE == "CENTER_FIXED_SHARED_TRUNK":
-        # Shared trunk（32→96→48）+ 三分支 1x1；量化節點見 head_fixed_shared_trunk.py。
+        # Shared trunk（in→96→48）+ 三分支 1x1；定點節點見 head_fixed_shared_trunk.py。
         from lib.models.layers.head_fixed_shared_trunk import CenterPredictorFixedSharedTrunk
         in_channel = hidden_dim
         out_channel = cfg.MODEL.HEAD.NUM_CHANNELS
         feat_sz = int(cfg.DATA.SEARCH.SIZE / stride)
+        int_bits = getattr(cfg.MODEL.HEAD, "FIXED_INT_BITS", None)
+        frac_bits = getattr(cfg.MODEL.HEAD, "FIXED_FRAC_BITS", None)
+        enable_fixed_quant = int_bits is not None and frac_bits is not None
         center_head = CenterPredictorFixedSharedTrunk(
-            inplanes=in_channel, channel=out_channel, feat_sz=feat_sz, stride=stride
+            inplanes=in_channel,
+            channel=out_channel,
+            feat_sz=feat_sz,
+            stride=stride,
+            int_bits=int(int_bits) if int_bits is not None else 8,
+            frac_bits=int(frac_bits) if frac_bits is not None else 8,
+            enable_fixed_quant=enable_fixed_quant,
         )
         return center_head
     else:

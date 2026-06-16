@@ -1,9 +1,8 @@
-"""Shared-trunk CenterPredictor：兩層 3x3（32→96→48）+ 三分支 1x1 tail（浮點，無 Q8.8）。
+"""Shared-trunk CenterPredictor：兩層 3x3（in→96→48）+ 三分支 1x1 tail。
 
-與 `head.CenterPredictor` 數值路徑一致：ctr/size 經 sigmoid 並 clamp；offset 純 conv 輸出；bbox 無額外量化。
-類別名保留 CenterPredictorFixedSharedTrunk 以相容 yaml `CENTER_FIXED_SHARED_TRUNK`。
-
-`channel`（舊 yaml 的 NUM_CHANNELS）保留為相容參數，此結構不使用。
+訓練（yaml 無 FIXED_INT_BITS）：浮點 forward。
+Test-time 定點（yaml 設 FIXED_INT_BITS / FIXED_FRAC_BITS）：在 tail 輸出、sigmoid 後與 bbox 插入
+``to_fixed_point``，節點對齊 ``head_shared_trunk_dump.py``。
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ import torch
 import torch.nn as nn
 
 from lib.models.layers.head import conv
+from lib.module import to_fixed_point
 
 SHARED_CH1 = 96
 SHARED_CH2 = 48
@@ -29,12 +29,15 @@ class CenterPredictorFixedSharedTrunk(nn.Module):
         freeze_bn=False,
         int_bits: int = 8,
         frac_bits: int = 8,
+        enable_fixed_quant: bool = False,
     ):
         super().__init__()
         self.feat_sz = feat_sz
         self.stride = stride
         self.img_sz = self.feat_sz * self.stride
-        # int_bits / frac_bits 保留簽名相容，訓練已不使用定點
+        self.int_bits = int_bits
+        self.frac_bits = frac_bits
+        self.enable_fixed_quant = bool(enable_fixed_quant)
         self.shared_conv1 = conv(
             inplanes, SHARED_CH1, kernel_size=3, stride=1, padding=1, freeze_bn=freeze_bn
         )
@@ -50,6 +53,9 @@ class CenterPredictorFixedSharedTrunk(nn.Module):
             for p in m.parameters():
                 if p.dim() > 1:
                     nn.init.xavier_uniform_(p)
+
+    def _q(self, x: torch.Tensor) -> torch.Tensor:
+        return to_fixed_point(x, self.int_bits, self.frac_bits)
 
     def forward(self, x, gt_score_map=None):
         score_map_ctr, size_map, offset_map = self.get_score_map(x)
@@ -76,19 +82,30 @@ class CenterPredictorFixedSharedTrunk(nn.Module):
             ],
             dim=1,
         )
+        if self.enable_fixed_quant:
+            bbox = self._q(bbox)
 
         if return_score:
             return bbox, max_score
         return bbox
 
     def get_score_map(self, x):
-        def _sigmoid(x):
-            return torch.clamp(x.sigmoid_(), min=1e-4, max=1 - 1e-4)
+        if not self.enable_fixed_quant:
+            def _sigmoid(t):
+                return torch.clamp(t.sigmoid_(), min=1e-4, max=1 - 1e-4)
+
+            trunk = self.shared_conv2(self.shared_conv1(x))
+            score_map_ctr = self.tail_ctr(trunk)
+            score_map_size = self.tail_size(trunk)
+            score_map_offset = self.tail_offset(trunk)
+            return _sigmoid(score_map_ctr), _sigmoid(score_map_size), score_map_offset
+
+        def _sigmoid_q(t: torch.Tensor) -> torch.Tensor:
+            y = torch.clamp(t.sigmoid_(), min=1e-4, max=1 - 1e-4)
+            return self._q(y)
 
         trunk = self.shared_conv2(self.shared_conv1(x))
-
-        score_map_ctr = self.tail_ctr(trunk)
-        score_map_size = self.tail_size(trunk)
-        score_map_offset = self.tail_offset(trunk)
-
-        return _sigmoid(score_map_ctr), _sigmoid(score_map_size), score_map_offset
+        q_ctr = self._q(self.tail_ctr(trunk))
+        q_size = self._q(self.tail_size(trunk))
+        q_off = self._q(self.tail_offset(trunk))
+        return _sigmoid_q(q_ctr.clone()), _sigmoid_q(q_size.clone()), q_off
