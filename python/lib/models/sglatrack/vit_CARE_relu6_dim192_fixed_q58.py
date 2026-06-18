@@ -19,9 +19,9 @@ Modified by Botao Ye
 
 本檔與 vit.py 模組結構與 state_dict 鍵名／張量形狀完全一致（Attention 僅 forward 改為
 CARE-Transformer 風格 softmax-free 線性注意力，並將 ReLU mapping 改為 ReLU6）。
-本檔為 vit_CARE_relu6 dim192 之 Q8.8 變體（檔名 ``vit_CARE_relu6_dim192_fixed_q88.py``）：
-embed_dim=192 / num_heads=3；全路徑 ``to_fixed_point(..., 8, 8)``。
-與 ``vit_CARE_relu6_fixed_q88.py``（768 維）同結構，factory 與預訓練載入對齊 dim192 student。
+本檔為 vit_CARE_relu6 dim192 之 Q5.8 變體（檔名 ``vit_CARE_relu6_dim192_fixed_q58.py``）：
+embed_dim=192 / num_heads=3；全路徑 ``to_fixed_point(..., 5, 8)``。
+與 ``vit_CARE_relu6_fixed_q58.py``（768 維）同結構，factory 與預訓練載入對齊 dim192 student。
 """
 import math
 import logging
@@ -66,42 +66,42 @@ class Attention(nn.Module):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
-        q = to_fixed_point(q, 8, 8)
-        k = to_fixed_point(k, 8, 8)
-        v = to_fixed_point(v, 8, 8)
+        q = to_fixed_point(q, 5, 8)
+        k = to_fixed_point(k, 5, 8)
+        v = to_fixed_point(v, 5, 8)
 
         # 與 vit.py 相同：scaled dot-product 為 (q @ k^T) * (1/sqrt(d))，等價於兩邊各乘 d^{-1/4}
         # 再送入 ReLU6 正值核，並以 per-head gating 銳化注意力分佈
         s = self.scale ** 0.5
         qs = q * s
         ks = k * s
-        qs = to_fixed_point(qs, 8, 8)
-        ks = to_fixed_point(ks, 8, 8)
+        qs = to_fixed_point(qs, 5, 8)
+        ks = to_fixed_point(ks, 5, 8)
         q = F.relu6(qs)
         k = F.relu6(ks)
-        q = to_fixed_point(q, 8, 8)
-        k = to_fixed_point(k, 8, 8)
+        q = to_fixed_point(q, 5, 8)
+        k = to_fixed_point(k, 5, 8)
         v = self.attn_drop(v)
-        v = to_fixed_point(v, 8, 8)
+        v = to_fixed_point(v, 5, 8)
         k_mean = k.mean(dim=-2, keepdim=True)
-        k_mean = to_fixed_point(k_mean, 8, 8)
+        k_mean = to_fixed_point(k_mean, 5, 8)
         z = 1.0 / (q @ k_mean.transpose(-2, -1) + 1e-5)
-        z = to_fixed_point(z, 8, 8)
+        z = to_fixed_point(z, 5, 8)
         kv = (k.transpose(-2, -1) @ v) / float(N)
-        kv = to_fixed_point(kv, 8, 8)
+        kv = to_fixed_point(kv, 5, 8)
         x = (q @ kv) * z
-        x = to_fixed_point(x, 8, 8)
+        x = to_fixed_point(x, 5, 8)
         x = x.transpose(1, 2).reshape(B, N, C)
-        x = to_fixed_point(x, 8, 8)
+        x = to_fixed_point(x, 5, 8)
         x = self.proj(x)
-        x = to_fixed_point(x, 8, 8)
+        x = to_fixed_point(x, 5, 8)
         x = self.proj_drop(x)
-        x = to_fixed_point(x, 8, 8)
+        x = to_fixed_point(x, 5, 8)
 
         if return_attention:
             # 與標準 ViT 的 pre-softmax logits 同形、同尺度（供除錯／可視化）
             attn = qs @ ks.transpose(-2, -1)
-            attn = to_fixed_point(attn, 8, 8)
+            attn = to_fixed_point(attn, 5, 8)
             return x, attn
         return x
 
@@ -122,31 +122,31 @@ class Block(nn.Module):
     def forward(self, x, return_attention=False):
         if return_attention:
             x_norm1 = self.norm1(x)
-            x_norm1 = to_fixed_point(x_norm1, 8, 8)
+            x_norm1 = to_fixed_point(x_norm1, 5, 8)
             feat, attn = self.attn(x_norm1, True)
-            feat = to_fixed_point(feat, 8, 8)
+            feat = to_fixed_point(feat, 5, 8)
             x = x + self.drop_path(feat)
-            x = to_fixed_point(x, 8, 8)
+            x = to_fixed_point(x, 5, 8)
             x_norm2 = self.norm2(x)
-            x_norm2 = to_fixed_point(x_norm2, 8, 8)
+            x_norm2 = to_fixed_point(x_norm2, 5, 8)
             mlp_out = self.mlp(x_norm2)
-            mlp_out = to_fixed_point(mlp_out, 8, 8)
+            mlp_out = to_fixed_point(mlp_out, 5, 8)
             x = x + self.drop_path(mlp_out)
-            x = to_fixed_point(x, 8, 8)
+            x = to_fixed_point(x, 5, 8)
             return x, attn
         else:
             x_norm1 = self.norm1(x)
-            x_norm1 = to_fixed_point(x_norm1, 8, 8)
+            x_norm1 = to_fixed_point(x_norm1, 5, 8)
             attn_out = self.attn(x_norm1)
-            attn_out = to_fixed_point(attn_out, 8, 8)
+            attn_out = to_fixed_point(attn_out, 5, 8)
             x = x + self.drop_path(attn_out)
-            x = to_fixed_point(x, 8, 8)
+            x = to_fixed_point(x, 5, 8)
             x_norm2 = self.norm2(x)
-            x_norm2 = to_fixed_point(x_norm2, 8, 8)
+            x_norm2 = to_fixed_point(x_norm2, 5, 8)
             mlp_out = self.mlp(x_norm2)
-            mlp_out = to_fixed_point(mlp_out, 8, 8)
+            mlp_out = to_fixed_point(mlp_out, 5, 8)
             x = x + self.drop_path(mlp_out)
-            x = to_fixed_point(x, 8, 8)
+            x = to_fixed_point(x, 5, 8)
             return x
 
 
@@ -419,7 +419,7 @@ def checkpoint_filter_fn(state_dict, model):
     return out_dict
 
 
-def _create_vision_transformer_dim192_fixed_q88(pretrained=False, **kwargs):
+def _create_vision_transformer_dim192_fixed_q58(pretrained=False, **kwargs):
     if kwargs.get('features_only', None):
         raise RuntimeError('features_only not implemented for Vision Transformer models.')
 
@@ -443,15 +443,15 @@ def _create_vision_transformer_dim192_fixed_q88(pretrained=False, **kwargs):
             pass
         elif pretrained:
             raise ValueError(
-                "dim192 fixed Q8.8：pretrained 請為 ViT-Tiny .pth 或 sglatrack checkpoint 路徑"
+                "dim192 fixed Q5.8：pretrained 請為 ViT-Tiny .pth 或 sglatrack checkpoint 路徑"
             )
 
     return model
 
 
-def vit_tiny192_care_fixed_q88_patch16_224(pretrained=False, **kwargs):
+def vit_tiny192_care_fixed_q58_patch16_224(pretrained=False, **kwargs):
     """
-    CARE ReLU6 Q8.8，embed_dim=192、depth=12、num_heads=3。
-    state_dict 與浮點 ``vit_CARE_relu6_dim192`` 相容，供 test 時插入 Q8.8 截斷。
+    CARE ReLU6 Q5.8，embed_dim=192、depth=12、num_heads=3。
+    state_dict 與浮點 ``vit_CARE_relu6_dim192`` 相容，供 test 時插入 Q5.8 截斷。
     """
-    return _create_vision_transformer_dim192_fixed_q88(pretrained=pretrained, **kwargs)
+    return _create_vision_transformer_dim192_fixed_q58(pretrained=pretrained, **kwargs)
