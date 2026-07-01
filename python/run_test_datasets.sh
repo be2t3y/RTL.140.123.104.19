@@ -12,14 +12,18 @@
 #   bash python/run_test_datasets.sh
 #   bash python/run_test_datasets.sh /path/to/my_datasets.txt
 #   CONFIG=vit_coco_uav123_care SCRIPT=sglatrack bash python/run_test_datasets.sh
+#   DATASET=uav123 CONFIG=... SKIP_TEST=1 FORCE_METRICS=1 bash python/run_test_datasets.sh
 #
 # 環境變數（皆可選，有預設值）：
+#   DATASET        只跑單一 dataset（優先於清單檔；例：uav123）
 #   DATASET_LIST   清單檔路徑（若第一個參數有給檔案，則優先於此）
 #   SCRIPT         tracker 腳本名，預設 sglatrack
 #   CONFIG         實驗設定檔名（不含 .yaml），須與訓練時相同
 #   SAVE_DIR       預設 output（與 train/test 輸出目錄一致）
 #   THREADS        預設 8（並行序列數；單機常見 4～8）
 #   TEST_NUM_GPUS  預設 1（單張 GPU 請維持 1）
+#   SKIP_TEST      預設 0；設 1 則跳過 test.py，只跑 calculate_metrics（anno 診斷實驗用）
+#   FORCE_METRICS  預設 1；傳給 calculate_metrics.py --force，避免 eval_data.pkl 快取
 #   SUMMARY_TABLE  預設 1：最後執行 tracking/benchmark_summary_table.py（讀 eval_data、跑 profile_model、印出文字表）
 #   CALC_FPS       在 SUMMARY_TABLE=1 時：預設 1 會於彙整腳本內跑 profile_model；設 0 則傳 --skip_profile（FPS 欄為 —）
 #                  在 SUMMARY_TABLE=0 時：預設 1 則單獨執行 profile_model.py 僅印出 FPS
@@ -33,6 +37,7 @@ cd "$ROOT_DIR/python"
 
 SCRIPT="${SCRIPT:-sglatrack}"
 CONFIG="${CONFIG:-vit_coco_uav123_care}"
+export CONFIG
 SAVE_DIR="${SAVE_DIR:-output}"
 THREADS="${THREADS:-8}"
 TEST_NUM_GPUS="${TEST_NUM_GPUS:-1}"
@@ -40,8 +45,14 @@ SUMMARY_TABLE="${SUMMARY_TABLE:-1}"
 CALC_FPS="${CALC_FPS:-1}"
 CALC_METRICS="${CALC_METRICS:-1}"
 PLOT="${PLOT:-1}"
+SKIP_TEST="${SKIP_TEST:-0}"
+FORCE_METRICS="${FORCE_METRICS:-1}"
 
-if [[ "${1:-}" != "" && -f "${1:-}" ]]; then
+if [[ -n "${DATASET:-}" ]]; then
+  LIST_FILE="$(mktemp)"
+  trap 'rm -f "$LIST_FILE"' EXIT
+  printf '%s\n' "$DATASET" > "$LIST_FILE"
+elif [[ "${1:-}" != "" && -f "${1:-}" ]]; then
   LIST_FILE="$1"
 elif [[ -n "${DATASET_LIST:-}" ]]; then
   LIST_FILE="$DATASET_LIST"
@@ -65,6 +76,8 @@ echo "CONFIG        = $CONFIG (experiments/$SCRIPT/$CONFIG.yaml)"
 echo "SAVE_DIR      = $SAVE_DIR"
 echo "THREADS       = $THREADS"
 echo "TEST_NUM_GPUS = $TEST_NUM_GPUS"
+echo "SKIP_TEST     = $SKIP_TEST"
+echo "FORCE_METRICS = $FORCE_METRICS"
 echo "SUMMARY_TABLE = $SUMMARY_TABLE"
 echo "CALC_FPS      = $CALC_FPS"
 echo "CALC_METRICS  = $CALC_METRICS"
@@ -87,10 +100,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   echo "[$idx] dataset: $ds"
   echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 
-  python tracking/test.py "$SCRIPT" "$CONFIG" \
-    --dataset_name "$ds" \
-    --threads "$THREADS" \
-    --num_gpus "$TEST_NUM_GPUS"
+  METRICS_EXTRA=()
+  if [[ "$FORCE_METRICS" == "1" ]]; then
+    METRICS_EXTRA+=(--force)
+  fi
+
+  if [[ "$SKIP_TEST" != "1" ]]; then
+    python tracking/test.py "$SCRIPT" "$CONFIG" \
+      --dataset_name "$ds" \
+      --threads "$THREADS" \
+      --num_gpus "$TEST_NUM_GPUS"
+  else
+    echo "[SKIP_TEST=1] 略過 test.py，僅重算 metrics"
+  fi
 
   if [[ "$CALC_METRICS" == "1" ]]; then
     if [[ "$PLOT" == "1" ]]; then
@@ -98,12 +120,14 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         --tracker "$SCRIPT" \
         --param "$CONFIG" \
         --dataset "$ds" \
-        --plot
+        --plot \
+        "${METRICS_EXTRA[@]}"
     else
       python tracking/calculate_metrics.py \
         --tracker "$SCRIPT" \
         --param "$CONFIG" \
-        --dataset "$ds"
+        --dataset "$ds" \
+        "${METRICS_EXTRA[@]}"
     fi
   fi
 

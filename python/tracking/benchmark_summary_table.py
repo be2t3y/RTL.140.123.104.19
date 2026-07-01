@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -130,6 +131,7 @@ def main() -> None:
     parser.add_argument("--fps_cpu", type=str, default="—")
     parser.add_argument("--json", type=str, default=None, help="可選：另存 JSON 路徑")
     args = parser.parse_args()
+    os.environ['CONFIG'] = args.param
 
     python_root = Path(__file__).resolve().parent.parent
     script = args.script or args.tracker

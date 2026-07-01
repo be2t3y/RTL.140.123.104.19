@@ -1,0 +1,11 @@
+# 範例清單：複製或覆寫 test_datasets_list.txt 後執行
+#   bash python/run_test_datasets.sh
+#
+# 每行一個 dataset 名稱（與 --dataset_name 相同）
+# 注意：UAVTrack112_L 在程式內名稱為 uavtrack（非 uavtrack112_l）
+
+uav123
+uav123_10fps
+uavtrack112
+uavtrack
+dtb70

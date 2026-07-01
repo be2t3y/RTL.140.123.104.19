@@ -19,6 +19,7 @@ cd "$ROOT_DIR/python"
 # 可調參數（可用環境變數覆蓋）
 # ----------------------
 CONFIG="${CONFIG:-vit_coco_uav123_mala_relu}"   # 不含 .yaml
+export CONFIG
 SCRIPT="${SCRIPT:-sglatrack}"
 SAVE_DIR="${SAVE_DIR:-output}"
 MODE="${MODE:-multiple}"                       # single | multiple | multi_node（通常用 single/multiple）

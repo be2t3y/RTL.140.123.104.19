@@ -23,6 +23,7 @@ def run_tracker(tracker_name, tracker_param, run_id=None, dataset_name='otb', se
         debug: Debug level.
         threads: Number of threads.
     """
+    os.environ['CONFIG'] = tracker_param
 
     dataset = get_dataset(dataset_name)
 

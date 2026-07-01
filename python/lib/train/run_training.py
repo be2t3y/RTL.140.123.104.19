@@ -33,6 +33,7 @@ def run_training(script_name, config_name, cudnn_benchmark=True, local_rank=-1, 
         config_name: Name of the yaml file in the "experiments/<script_name>".
         cudnn_benchmark: Use cudnn benchmark or not (default is True).
     """
+    os.environ['CONFIG'] = config_name
     if save_dir is None:
         print("save_dir dir is not given. Use the default dir instead.")
     # This is needed to avoid strange crashes related to opencv

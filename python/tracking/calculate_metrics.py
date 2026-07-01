@@ -23,7 +23,11 @@ def parse_args():
     parser.add_argument('--display_name', type=str, default=None, help='顯示名稱 (可選)')
     parser.add_argument('--merge', action='store_true', help='合併多次執行的結果')
     parser.add_argument('--plot', action='store_true', help='生成簡化版圖表（不需要 LaTeX）')
-    
+    parser.add_argument(
+        '--force', action='store_true',
+        help='忽略 output/test/result_plots/<dataset>/eval_data.pkl，強制依目前 anno 重算'
+    )
+
     args = parser.parse_args()
     return args
 
@@ -113,6 +117,7 @@ def plot_simple_curves(eval_data, dataset_name, result_path):
 
 def main():
     args = parse_args()
+    os.environ['CONFIG'] = args.param
     
     print(f"\n{'='*70}")
     print(f"計算指標：{args.tracker} ({args.param}) on {args.dataset}")
@@ -139,7 +144,8 @@ def main():
         dataset,
         args.dataset,
         merge_results=args.merge,
-        plot_types=('success', 'prec', 'norm_prec')
+        plot_types=('success', 'prec', 'norm_prec'),
+        force_evaluation=args.force,
     )
     
     # 如果需要畫圖
@@ -152,7 +158,9 @@ def main():
         result_plot_path = os.path.join(settings.result_plot_path, args.dataset)
         
         # 載入預計算結果
-        eval_data = check_and_load_precomputed_results(trackers, dataset, args.dataset)
+        eval_data = check_and_load_precomputed_results(
+            trackers, dataset, args.dataset, force_evaluation=args.force
+        )
         
         # 生成簡化圖表
         plot_simple_curves(eval_data, args.dataset, result_plot_path)
